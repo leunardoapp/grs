@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  mobile            String    @unique
+  firstName         String
+  lastName          String
+  nationalCode      String?
+  passwordHash      String
+  role              UserRole  @default(CUSTOMER)
+  reservations      Reservation[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model Reservation {
+  id                    String    @id @default(cuid())
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  confirmationCode      String    @unique
+  agencyConfirmationCode String?
+  propertyId            Int
+  propertyName          String
+  checkIn               DateTime
+  checkOut              DateTime
+  status                String    // GRS status (pending, booking, booked, definite, rejected, canceling, canceled, modifying)
+  state                 String    // online / offline
+  totalPrice            Int       // in Rials
+  totalSalesPrice       Int
+  expireAt              DateTime?
+  bookerFirstName       String
+  bookerLastName        String
+  bookerPhone           String
+  bookerEmail           String?
+  rooms                 ReservationRoom[]
+  payments              Payment[]
+  webhookEvents         WebhookEvent[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model ReservationRoom {
+  id                String      @id @default(cuid())
+  reservationId     String
+  reservation       Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  roomTypeId        Int
+  roomTypeName      String
+  ratePlanId        Int
+  ratePlanName      String
+  adultCount        Int
+  children          Json        // array of ages
+  guestFirstName    String
+  guestLastName     String
+  guestPhone        String?
+  guestNationalCode String?
+  totalPrice        Int
+  totalSalesPrice   Int
+  cancellationFee   Int?
+  modificationFee   Int?
+  createdAt         DateTime    @default(now())
+}
+
+model Payment {
+  id              String      @id @default(cuid())
+  reservationId   String
+  reservation     Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  amount          Int
+  authority       String?     // ZarinPal authority
+  refId           String?     // ZarinPal ref_id
+  status          PaymentStatus @default(PENDING)
+  gateway         String      @default("zarinpal")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model WebhookEvent {
+  id              String      @id @default(cuid())
+  reservationId   String?
+  reservation     Reservation? @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  method          String      // reserve_changed, available_changed, property_changed
+  payload         Json
+  processed       Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+}
+
+model Setting {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  label           String
+  group           String   // api, payment, sms, general, seo
+  updatedAt       DateTime @updatedAt
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  OPERATOR
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
